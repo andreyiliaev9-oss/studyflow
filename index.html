@@ -1,0 +1,2060 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>StudyFlow — Учебный сервис</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <style>
+    :root {
+      --bg-winter: #EEF5FC;
+      --bg-gradient: linear-gradient(180deg, #DCEBFA 0%, #EEF5FC 34%, #F7FAFD 100%);
+      --dot-color: #C7D9EC;
+      --card-bg: rgba(255, 255, 255, 0.90);
+      --card-solid: #FFFFFF;
+      --ink: #141B29;
+      --ink-muted: #4B5870;
+      --border: #1B283C;
+      --border-frost: #9CC2E6;
+      --border-soft: #DCE7F3;
+      --yellow: #FDE047;
+      --yellow-hover: #FACC15;
+      --mint: #A7F3D0;
+      --mint-strong: #10B981;
+      --ice: #BAE6FD;
+      --ice-deep: #38BDF8;
+      --blue-strong: #0284C7;
+      --red: #FECACA;
+      --red-strong: #EF4444;
+      --radius: 16px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", Roboto, sans-serif;
+      background-color: var(--bg-winter);
+      background-image:
+        radial-gradient(var(--dot-color) 1.2px, transparent 1.2px),
+        var(--bg-gradient);
+      background-size: 18px 18px, 100% 100%;
+      background-attachment: fixed;
+      color: var(--ink);
+      min-height: 100vh;
+      padding-bottom: 108px;
+      line-height: 1.4;
+      overflow-x: hidden;
+    }
+
+    /* Зимний слой снегопада */
+    #snow-canvas {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 40;
+    }
+
+    /* Морозное северное сияние в верхней части экрана */
+    .winter-aurora {
+      position: fixed;
+      top: -60px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 520px;
+      height: 210px;
+      background: radial-gradient(ellipse at center, rgba(125, 211, 252, 0.42) 0%, rgba(167, 243, 208, 0.22) 45%, transparent 75%);
+      filter: blur(22px);
+      pointer-events: none;
+      z-index: 0;
+      animation: auroraPulse 7s ease-in-out infinite alternate;
+    }
+
+    @keyframes auroraPulse {
+      0% { opacity: 0.72; transform: translateX(-50%) scale(1); }
+      100% { opacity: 1; transform: translateX(-48%) scale(1.06); }
+    }
+
+    .container {
+      position: relative;
+      z-index: 2;
+      max-width: 480px;
+      margin: 0 auto;
+      padding: 14px 16px;
+    }
+
+    .top-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(167, 243, 208, 0.92);
+      backdrop-filter: blur(8px);
+      border: 1.5px solid var(--border);
+      border-radius: 999px;
+      padding: 6px 13px;
+      font-size: 12px;
+      font-weight: 700;
+      box-shadow: 2px 2px 0 var(--border);
+    }
+    .status-pill.busy {
+      background: var(--yellow);
+    }
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--mint-strong);
+      box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.25);
+    }
+    .status-pill.busy .status-dot {
+      background: #D97706;
+      box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.25);
+    }
+
+    .snow-toggle-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      background: rgba(255, 255, 255, 0.88);
+      backdrop-filter: blur(8px);
+      border: 1.5px solid var(--border);
+      border-radius: 999px;
+      padding: 6px 11px;
+      font-size: 11.5px;
+      font-weight: 700;
+      color: var(--ink);
+      box-shadow: 2px 2px 0 var(--border);
+      cursor: pointer;
+    }
+    .snow-toggle-btn:active {
+      transform: translate(1px, 1px);
+      box-shadow: 1px 1px 0 var(--border);
+    }
+
+    .hero-title {
+      font-size: 27px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      line-height: 1.18;
+      margin-bottom: 8px;
+    }
+    .highlight {
+      background: linear-gradient(180deg, transparent 42%, var(--yellow) 42%);
+      padding: 0 5px;
+      border-radius: 4px;
+    }
+    .highlight-ice {
+      background: linear-gradient(180deg, transparent 42%, var(--ice) 42%);
+      padding: 0 5px;
+      border-radius: 4px;
+    }
+    .hero-sub {
+      font-size: 13.5px;
+      color: var(--ink-muted);
+      margin-bottom: 16px;
+    }
+
+    /* Зимний информационный баннер */
+    .winter-banner {
+      position: relative;
+      background: linear-gradient(135deg, rgba(255,255,255,0.95) 0%, rgba(224, 242, 254, 0.92) 100%);
+      backdrop-filter: blur(10px);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 12px 14px;
+      box-shadow: 3px 3px 0 var(--border);
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      overflow: hidden;
+    }
+    .winter-banner::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: linear-gradient(90deg, #38BDF8, #FDE047, #34D399);
+    }
+    .winter-banner-title {
+      font-size: 13.5px;
+      font-weight: 800;
+      margin-bottom: 2px;
+    }
+    .winter-banner-sub {
+      font-size: 12px;
+      color: var(--ink-muted);
+    }
+    .winter-badge {
+      flex-shrink: 0;
+      background: var(--ice);
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      padding: 5px 9px;
+      font-size: 11px;
+      font-weight: 800;
+      text-align: center;
+    }
+
+    .bento-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .bento-card {
+      position: relative;
+      background: var(--card-bg);
+      backdrop-filter: blur(10px);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px;
+      box-shadow: 3px 3px 0 var(--border);
+      cursor: pointer;
+      transition: transform 0.12s ease, box-shadow 0.12s ease;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      overflow: hidden;
+    }
+    .bento-card::after {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 10px;
+      right: 10px;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, rgba(186, 230, 253, 0.9), transparent);
+    }
+    .bento-card:active {
+      transform: translate(2px, 2px);
+      box-shadow: 1px 1px 0 var(--border);
+    }
+    .icon-box {
+      width: 38px;
+      height: 38px;
+      border-radius: 10px;
+      border: 1.5px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 11px;
+      background: #F4F8FC;
+    }
+    .icon-box.yellow { background: var(--yellow); }
+    .icon-box.mint { background: var(--mint); }
+    .icon-box.blue { background: var(--ice); }
+
+    .card-title {
+      font-size: 14.5px;
+      font-weight: 800;
+      margin-bottom: 3px;
+    }
+    .card-price-hint {
+      display: inline-block;
+      font-size: 11.5px;
+      font-weight: 700;
+      color: #0369A1;
+      background: rgba(186, 230, 253, 0.45);
+      border-radius: 6px;
+      padding: 2px 6px;
+      margin-bottom: 3px;
+    }
+    .card-meta {
+      font-size: 11.5px;
+      color: var(--ink-muted);
+      font-weight: 500;
+    }
+
+    .trust-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-bottom: 18px;
+    }
+    .trust-item {
+      background: var(--card-bg);
+      backdrop-filter: blur(8px);
+      border: 1.5px solid var(--border);
+      border-radius: 12px;
+      padding: 10px 8px;
+      text-align: center;
+      font-size: 11.5px;
+      font-weight: 700;
+    }
+    .trust-item svg {
+      display: block;
+      margin: 0 auto 5px;
+    }
+
+    .section-header {
+      font-size: 17px;
+      font-weight: 800;
+      margin: 18px 0 10px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .compare-card {
+      background: var(--card-bg);
+      backdrop-filter: blur(10px);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px;
+      box-shadow: 3px 3px 0 var(--border);
+      margin-bottom: 14px;
+    }
+    .compare-tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+    .chip-btn {
+      border: 1.5px solid var(--border);
+      background: rgba(255, 255, 255, 0.92);
+      border-radius: 999px;
+      padding: 5px 12px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .chip-btn.active {
+      background: var(--yellow);
+    }
+    .compare-box {
+      border: 1.5px dashed var(--ink-muted);
+      border-radius: 12px;
+      padding: 12px;
+      font-size: 13px;
+      background: rgba(248, 250, 252, 0.9);
+    }
+    .compare-box.after {
+      border: 1.5px solid var(--mint-strong);
+      background: #ECFDF5;
+    }
+
+    .guide-item {
+      background: var(--card-bg);
+      backdrop-filter: blur(8px);
+      border: 1.5px solid var(--border);
+      border-radius: 14px;
+      padding: 12px 14px;
+      margin-bottom: 10px;
+      cursor: pointer;
+    }
+    .guide-title {
+      font-weight: 700;
+      font-size: 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .guide-body {
+      display: none;
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px solid var(--border-soft);
+      font-size: 13px;
+      color: var(--ink-muted);
+    }
+    .guide-item.open .guide-body {
+      display: block;
+    }
+
+    .btn {
+      width: 100%;
+      border: 1.5px solid var(--border);
+      border-radius: 14px;
+      padding: 13px 16px;
+      font-size: 14.5px;
+      font-weight: 800;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      box-shadow: 3px 3px 0 var(--border);
+      transition: transform 0.1s ease, box-shadow 0.1s ease;
+      text-decoration: none;
+      color: var(--ink);
+    }
+    .btn:active {
+      transform: translate(2px, 2px);
+      box-shadow: 1px 1px 0 var(--border);
+    }
+    .btn-yellow { background: var(--yellow); }
+    .btn-green  { background: var(--mint); }
+    .btn-blue   { background: var(--ice); }
+    .btn-red    { background: var(--red); }
+    .btn-white  { background: #FFFFFF; }
+    .btn-sm {
+      padding: 8px 11px;
+      font-size: 12px;
+      border-radius: 10px;
+      box-shadow: 2px 2px 0 var(--border);
+    }
+
+    .legal-footer {
+      margin-top: 20px;
+      text-align: center;
+    }
+    .legal-link {
+      background: none;
+      border: none;
+      color: var(--ink-muted);
+      font-size: 12px;
+      font-weight: 600;
+      text-decoration: underline;
+      text-underline-offset: 3px;
+      cursor: pointer;
+      padding: 6px 10px;
+    }
+    .legal-note {
+      margin-top: 10px;
+      text-align: center;
+      font-size: 11.5px;
+      color: var(--ink-muted);
+      line-height: 1.35;
+    }
+    .legal-note span {
+      text-decoration: underline;
+      text-underline-offset: 2px;
+      cursor: pointer;
+      color: var(--ink);
+      font-weight: 600;
+    }
+    .policy-block {
+      background: #FFFFFF;
+      border: 1.5px solid var(--border);
+      border-radius: 14px;
+      padding: 12px 14px;
+      margin-bottom: 10px;
+      font-size: 13px;
+      color: var(--ink-muted);
+    }
+    .policy-block h4 {
+      font-size: 14px;
+      font-weight: 800;
+      color: var(--ink);
+      margin-bottom: 5px;
+    }
+
+    .bottom-nav {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: rgba(238, 245, 252, 0.94);
+      backdrop-filter: blur(14px);
+      border-top: 1.5px solid var(--border);
+      display: flex;
+      justify-content: space-around;
+      padding: 8px 8px calc(8px + env(safe-area-inset-bottom));
+      z-index: 50;
+    }
+    .nav-item {
+      background: none;
+      border: 1.5px solid transparent;
+      border-radius: 12px;
+      padding: 6px 10px;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--ink-muted);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      cursor: pointer;
+    }
+    .nav-item.active {
+      color: var(--ink);
+      background: var(--yellow);
+      border-color: var(--border);
+      box-shadow: 2px 2px 0 var(--border);
+    }
+
+    .tab-pane { display: none; }
+    .tab-pane.active { display: block; }
+
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.58);
+      backdrop-filter: blur(4px);
+      display: none;
+      align-items: flex-end;
+      z-index: 100;
+    }
+    .modal-backdrop.open { display: flex; }
+    .sheet {
+      background: var(--bg-winter);
+      width: 100%;
+      max-width: 480px;
+      margin: 0 auto;
+      border-top: 2px solid var(--border);
+      border-radius: 22px 22px 0 0;
+      padding: 18px 16px calc(22px + env(safe-area-inset-bottom));
+      max-height: 92vh;
+      overflow-y: auto;
+    }
+    .sheet-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 14px;
+    }
+    .close-btn {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      border: 1.5px solid var(--border);
+      background: #FFF;
+      font-weight: 800;
+      cursor: pointer;
+    }
+
+    .form-group { margin-bottom: 13px; }
+    .label {
+      display: block;
+      font-size: 12.5px;
+      font-weight: 700;
+      margin-bottom: 5px;
+    }
+    .input, .select, .textarea {
+      width: 100%;
+      border: 1.5px solid var(--border);
+      border-radius: 12px;
+      padding: 10px 12px;
+      font-size: 14px;
+      background: #FFF;
+      color: var(--ink);
+      font-family: inherit;
+    }
+    .textarea { min-height: 76px; resize: vertical; }
+
+    .deadline-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+    .deadline-chip {
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      padding: 8px 6px;
+      text-align: center;
+      font-size: 12px;
+      font-weight: 700;
+      background: #FFF;
+      cursor: pointer;
+    }
+    .deadline-chip.selected {
+      background: var(--yellow);
+    }
+
+    .checkbox-list {
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+    }
+    .checkbox-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      background: #FFF;
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      padding: 8px 10px;
+      cursor: pointer;
+    }
+
+    /* Плашка ориентировочной вилки цен */
+    .estimate-card {
+      background: linear-gradient(135deg, #FEF9C3 0%, #E0F2FE 100%);
+      border: 1.5px solid var(--border);
+      border-radius: 14px;
+      padding: 12px 14px;
+      margin-bottom: 13px;
+      box-shadow: 2px 2px 0 var(--border);
+    }
+    .estimate-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 4px;
+    }
+    .estimate-label {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--ink-muted);
+    }
+    .estimate-badge {
+      font-size: 10.5px;
+      font-weight: 800;
+      background: #FFF;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 2px 8px;
+    }
+    .estimate-range {
+      font-size: 21px;
+      font-weight: 900;
+      color: var(--ink);
+      letter-spacing: -0.02em;
+    }
+    .estimate-note {
+      font-size: 11.5px;
+      color: var(--ink-muted);
+      margin-top: 3px;
+      line-height: 1.3;
+    }
+
+    .file-drop {
+      border: 1.5px dashed var(--border);
+      border-radius: 12px;
+      padding: 14px;
+      text-align: center;
+      background: #FFF;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 600;
+      display: block;
+    }
+    .file-list {
+      margin-top: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .file-pill {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--ice);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 6px 10px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .promo-row {
+      display: flex;
+      gap: 8px;
+    }
+    .promo-row .input { flex: 1; text-transform: uppercase; }
+    .promo-row .btn { width: auto; padding: 0 14px; }
+
+    .order-card {
+      background: var(--card-bg);
+      backdrop-filter: blur(10px);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px;
+      box-shadow: 3px 3px 0 var(--border);
+      margin-bottom: 12px;
+    }
+    .order-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+    .order-id {
+      font-weight: 800;
+      font-size: 14px;
+    }
+    .badge {
+      border: 1.5px solid var(--border);
+      border-radius: 999px;
+      padding: 3px 10px;
+      font-size: 11px;
+      font-weight: 800;
+      background: var(--yellow);
+      white-space: nowrap;
+    }
+    .badge.green { background: var(--mint); }
+    .badge.blue { background: var(--ice); }
+    .badge.red { background: var(--red); }
+
+    .order-detail {
+      font-size: 13px;
+      color: var(--ink-muted);
+      margin-bottom: 4px;
+    }
+    .price-box {
+      margin-top: 10px;
+      padding: 10px;
+      border-radius: 10px;
+      border: 1.5px solid var(--border);
+      background: #FEF9C3;
+      font-size: 13.5px;
+      font-weight: 700;
+    }
+
+    /* Удобная панель управления заявкой в 1 тап для админа */
+    .admin-action-box {
+      margin-top: 10px;
+      padding: 10px;
+      border-radius: 12px;
+      background: rgba(241, 247, 254, 0.95);
+      border: 1.5px solid var(--border-frost);
+    }
+    .admin-status-stepper {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+      margin-bottom: 8px;
+    }
+    .step-btn {
+      border: 1.5px solid var(--border);
+      border-radius: 9px;
+      padding: 7px 4px;
+      font-size: 11px;
+      font-weight: 800;
+      background: #FFF;
+      color: var(--ink);
+      cursor: pointer;
+      text-align: center;
+      box-shadow: 1.5px 1.5px 0 var(--border);
+    }
+    .step-btn:active {
+      transform: translate(1px, 1px);
+      box-shadow: none;
+    }
+    .step-btn.current {
+      background: var(--mint);
+    }
+    .step-btn.new-step.current {
+      background: var(--yellow);
+    }
+
+    .btn-grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+    .stat-card {
+      background: var(--card-bg);
+      backdrop-filter: blur(8px);
+      border: 1.5px solid var(--border);
+      border-radius: 14px;
+      padding: 12px;
+      box-shadow: 2px 2px 0 var(--border);
+    }
+    .stat-val {
+      font-size: 20px;
+      font-weight: 800;
+    }
+    .stat-lbl {
+      font-size: 12px;
+      color: var(--ink-muted);
+    }
+
+    .toast {
+      position: fixed;
+      top: 14px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--ink);
+      color: #FFF;
+      padding: 10px 16px;
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 600;
+      z-index: 200;
+      display: none;
+      max-width: 90%;
+      text-align: center;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.2);
+    }
+  </style>
+</head>
+<body>
+
+<canvas id="snow-canvas"></canvas>
+<div class="winter-aurora"></div>
+<div id="toast" class="toast"></div>
+
+<div class="container">
+  <!-- ВКЛАДКА 1: УСЛУГИ И ВИТРИНА -->
+  <div id="tab-services" class="tab-pane active">
+    <div class="top-bar">
+      <div id="service-status-pill" class="status-pill">
+        <span class="status-dot"></span>
+        <span id="service-status-text">Принимаем заказы • 10 мин</span>
+      </div>
+      <button type="button" id="snow-toggle-btn" class="snow-toggle-btn" onclick="toggleSnow()">
+        ❄️ Снег: ВКЛ
+      </button>
+    </div>
+
+    <h1 class="hero-title">Закроем сессию <span class="highlight">без стресса</span> и бессонных ночей</h1>
+    <p class="hero-sub">Выберите задачу — сразу покажем примерную вилку цены, а точную сумму зафиксируем после просмотра методички.</p>
+
+    <div class="winter-banner">
+      <div>
+        <div class="winter-banner-title">❄️ Зимняя сессия без хвостов</div>
+        <div class="winter-banner-sub">Оформление строго по ГОСТу + бесплатные правки до зачёта</div>
+      </div>
+      <div class="winter-badge">24/7<br/>ОНЛАЙН</div>
+    </div>
+
+    <div class="bento-grid">
+      <div class="bento-card" onclick="openOrderSheet('Презентации')">
+        <div class="icon-box yellow">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#18181B" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+        </div>
+        <div>
+          <div class="card-title">Презентации</div>
+          <div class="card-price-hint">~900 – 2 200 ₽</div>
+          <div class="card-meta">от 1 дня • дизайн + тезисы</div>
+        </div>
+      </div>
+
+      <div class="bento-card" onclick="openOrderSheet('Рефераты и доклады')">
+        <div class="icon-box blue">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#18181B" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+        </div>
+        <div>
+          <div class="card-title">Рефераты и доклады</div>
+          <div class="card-price-hint">~1 100 – 2 600 ₽</div>
+          <div class="card-meta">от 2 дней • по методичке</div>
+        </div>
+      </div>
+
+      <div class="bento-card" onclick="openOrderSheet('Конспекты')">
+        <div class="icon-box mint">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#18181B" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+        </div>
+        <div>
+          <div class="card-title">Конспекты</div>
+          <div class="card-price-hint">~600 – 1 500 ₽</div>
+          <div class="card-meta">от 1 дня • выжимка без воды</div>
+        </div>
+      </div>
+
+      <div class="bento-card" onclick="openOrderSheet('Инфографика и схемы')">
+        <div class="icon-box yellow">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#18181B" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+        </div>
+        <div>
+          <div class="card-title">Инфографика</div>
+          <div class="card-price-hint">~800 – 1 900 ₽</div>
+          <div class="card-meta">от 1 дня • схемы и графики</div>
+        </div>
+      </div>
+
+      <div class="bento-card" onclick="openOrderSheet('Оформление по ГОСТу')">
+        <div class="icon-box blue">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#18181B" stroke-width="2"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+        </div>
+        <div>
+          <div class="card-title">Оформление по ГОСТу</div>
+          <div class="card-price-hint">~500 – 1 400 ₽</div>
+          <div class="card-meta">от 1 дня • шрифты, поля, ссылки</div>
+        </div>
+      </div>
+
+      <div class="bento-card" onclick="openOrderSheet('Индивидуальный запрос')">
+        <div class="icon-box mint">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#18181B" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+        </div>
+        <div>
+          <div class="card-title">Свой запрос</div>
+          <div class="card-price-hint">от ~1 000 ₽</div>
+          <div class="card-meta">курсовые, кейсы, расчёты</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="trust-row">
+      <div class="trust-item">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#18181B" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+        Бесплатные правки
+      </div>
+      <div class="trust-item">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#18181B" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+        По методичке
+      </div>
+      <div class="trust-item">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#18181B" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        Антиплагиат
+      </div>
+    </div>
+
+    <button class="btn btn-yellow" onclick="openOrderSheet('Презентации')">
+      Рассчитать и оформить заявку
+    </button>
+
+    <div class="section-header">Примеры оформления: До / После</div>
+    <div class="compare-card">
+      <div class="compare-tabs">
+        <button id="btn-before" class="chip-btn active" onclick="toggleCompare('before')">До (исходник)</button>
+        <button id="btn-after" class="chip-btn" onclick="toggleCompare('after')">После (StudyFlow)</button>
+      </div>
+      <div id="compare-content" class="compare-box">
+        Сплошной текст на 4 страницы без абзацев, разные шрифты (Calibri 11 и Arial 14), неровные таблицы, съехавшие поля и отсутствие нумерации страниц.
+      </div>
+    </div>
+
+    <div class="section-header">Шпаргалки студенту</div>
+    <div class="guide-item" onclick="this.classList.toggle('open')">
+      <div class="guide-title">
+        <span>Чек-лист оформления по ГОСТу</span>
+        <span>+</span>
+      </div>
+      <div class="guide-body">
+        Шрифт Times New Roman 14 пт, межстрочный интервал 1.5, абзацный отступ 1.25 см, выравнивание по ширине. Поля: левое — 30 мм, правое — 10–15 мм, верхнее и нижнее — 20 мм.
+      </div>
+    </div>
+    <div class="guide-item" onclick="this.classList.toggle('open')">
+      <div class="guide-title">
+        <span>Правила сильной презентации к защите</span>
+        <span>+</span>
+      </div>
+      <div class="guide-body">
+        1 слайд = 1 ключевая мысль. Не более 35–40 слов на слайде, контрастный фон, графики вместо громоздких таблиц и обязательный вывод на финальном слайде.
+      </div>
+    </div>
+
+    <div class="legal-footer">
+      <button type="button" class="legal-link" onclick="openPolicyModal()">
+        Политика конфиденциальности и условия сервиса
+      </button>
+    </div>
+  </div>
+
+  <!-- ВКЛАДКА 2: МОИ ЗАКАЗЫ -->
+  <div id="tab-orders" class="tab-pane">
+    <h1 class="hero-title">Мои <span class="highlight">заказы</span></h1>
+    <p class="hero-sub">Здесь отображаются актуальные статусы, выставленная стоимость и готовые файлы.</p>
+    <div id="client-orders-list"></div>
+  </div>
+
+  <!-- ВКЛАДКА 3: БОНУСЫ И РЕФЕРАЛКА -->
+  <div id="tab-bonuses" class="tab-pane">
+    <h1 class="hero-title">Бонусы и <span class="highlight">друзья</span></h1>
+    <p class="hero-sub">Приглашайте одногруппников и получайте 10% от каждого их заказа на свой баланс.</p>
+
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-val" id="user-bonus-balance">0 ₽</div>
+        <div class="stat-lbl">Доступно баллов</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-val" id="user-ref-count">0</div>
+        <div class="stat-lbl">Приглашено друзей</div>
+      </div>
+    </div>
+
+    <div class="order-card">
+      <div class="card-title" style="margin-bottom: 6px;">Ваша персональная ссылка</div>
+      <p class="order-detail" style="margin-bottom: 10px;">Отправьте ссылку другу — как только он оплатит заказ, бонусы зачислятся автоматически.</p>
+      <input id="ref-link-input" class="input" readonly style="margin-bottom: 10px; font-size: 12.5px;" />
+      <button class="btn btn-yellow" onclick="copyRefLink()">Скопировать ссылку</button>
+    </div>
+  </div>
+
+  <!-- ВКЛАДКА 4: АДМИН-ПАНЕЛЬ -->
+  <div id="tab-admin" class="tab-pane">
+    <h1 class="hero-title">Пульт <span class="highlight">админа</span></h1>
+    <p class="hero-sub">Управление заявками в один тап, выставление счёта клиенту и переход в Google Диск.</p>
+
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-val" id="adm-stat-active">0</div>
+        <div class="stat-lbl">Активных заявок</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-val" id="adm-stat-rev">0 ₽</div>
+        <div class="stat-lbl">Оборот по заказам</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-val" id="adm-stat-total">0</div>
+        <div class="stat-lbl">Всего заявок</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-val" id="adm-stat-users">0</div>
+        <div class="stat-lbl">Пользователей</div>
+      </div>
+    </div>
+
+    <div class="section-header">Заявки клиентов</div>
+    <div class="compare-tabs" style="flex-wrap: wrap;">
+      <button class="chip-btn active" onclick="filterAdminOrders('all', this)">Все</button>
+      <button class="chip-btn" onclick="filterAdminOrders('На оценке', this)">Новые</button>
+      <button class="chip-btn" onclick="filterAdminOrders('Ожидает оплаты', this)">Оплата</button>
+      <button class="chip-btn" onclick="filterAdminOrders('В работе', this)">В работе</button>
+      <button class="chip-btn" onclick="filterAdminOrders('Готов', this)">Готово</button>
+      <button class="chip-btn" onclick="filterAdminOrders('На доработке', this)">Правки</button>
+    </div>
+    <div id="admin-orders-list"></div>
+
+    <div class="section-header">Настройки и промокоды</div>
+    <div class="order-card">
+      <div class="card-title" style="margin-bottom: 10px;">Режим работы и реквизиты оплаты</div>
+      <div class="form-group">
+        <label class="label">Статус приема заявок</label>
+        <select id="adm-status-mode" class="select">
+          <option value="open">Принимаем заказы (зеленый)</option>
+          <option value="busy">Высокая загрузка (желтый)</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="label">Реквизиты (отправляются клиенту при выставлении цены)</label>
+        <textarea id="adm-payment-details" class="textarea" placeholder="СБП, номер карты, получатель..."></textarea>
+      </div>
+      <button class="btn btn-green btn-sm" onclick="saveAdminSettings()">Сохранить настройки</button>
+    </div>
+
+    <div class="order-card">
+      <div class="card-title" style="margin-bottom: 10px;">Создать промокод + рассылка всем</div>
+      <div class="form-group">
+        <label class="label">Код промокода</label>
+        <input id="adm-promo-code" class="input" placeholder="Например: WINTER20" style="text-transform: uppercase;" />
+      </div>
+      <div class="btn-grid-2" style="margin-top: 0; margin-bottom: 10px;">
+        <div>
+          <label class="label">Тип скидки</label>
+          <select id="adm-promo-type" class="select">
+            <option value="percent">Процент (%)</option>
+            <option value="fixed">Сумма (₽)</option>
+          </select>
+        </div>
+        <div>
+          <label class="label">Размер скидки</label>
+          <input id="adm-promo-val" type="number" class="input" placeholder="20" />
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="label">Лимит использований (0 = безлимит)</label>
+        <input id="adm-promo-limit" type="number" class="input" value="0" />
+      </div>
+      <button class="btn btn-yellow" onclick="createPromoBroadcast()">Создать промокод и оповестить всех</button>
+
+      <div id="adm-promos-list" style="margin-top: 14px;"></div>
+    </div>
+  </div>
+</div>
+
+<nav class="bottom-nav">
+  <button class="nav-item active" onclick="switchTab('services', this)">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+    Услуги
+  </button>
+  <button class="nav-item" onclick="switchTab('orders', this)">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+    Мои заказы
+  </button>
+  <button class="nav-item" onclick="switchTab('bonuses', this)">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 12 20 22 4 22 4 12"/><rect x="2" y="7" width="20" height="5"/><line x1="12" y1="22" x2="12" y2="7"/><path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z"/><path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z"/></svg>
+    Бонусы
+  </button>
+  <button id="nav-admin-btn" class="nav-item" style="display: none;" onclick="switchTab('admin', this)">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l-.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+    Админка
+  </button>
+</nav>
+
+<!-- ШТОРКА ОФОРМЛЕНИЯ ЗАЯВКИ -->
+<div id="order-modal" class="modal-backdrop">
+  <div class="sheet">
+    <div class="sheet-header">
+      <div class="hero-title" style="font-size: 20px; margin: 0;">Новая заявка</div>
+      <button class="close-btn" onclick="closeOrderSheet()">X</button>
+    </div>
+
+    <div class="form-group">
+      <label class="label">Услуга</label>
+      <select id="inp-service" class="select" onchange="recalcEstimateRange()">
+        <option value="Презентации">Презентации</option>
+        <option value="Рефераты и доклады">Рефераты и доклады</option>
+        <option value="Конспекты">Конспекты</option>
+        <option value="Инфографика и схемы">Инфографика и схемы</option>
+        <option value="Оформление по ГОСТу">Оформление по ГОСТу</option>
+        <option value="Индивидуальный запрос">Индивидуальный запрос</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label class="label">Предмет и тема работы *</label>
+      <input id="inp-topic" class="input" placeholder="Например: Экономика, Анализ инфляции" />
+    </div>
+
+    <div class="form-group">
+      <label class="label">Срок выполнения</label>
+      <div class="deadline-row">
+        <div class="deadline-chip selected" onclick="selectDeadline('Срочно (до 24 ч)', this)">Срочно (24 ч)</div>
+        <div class="deadline-chip" onclick="selectDeadline('2–3 дня', this)">2–3 дня</div>
+        <div class="deadline-chip" onclick="selectDeadline('Неделя и более', this)">Неделя+</div>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="label">Объем и требования (страницы, слайды, антиплагиат)</label>
+      <input id="inp-volume" class="input" placeholder="Например: 15 слайдов, оригинальность от 75%" oninput="recalcEstimateRange()" />
+    </div>
+
+    <div class="form-group">
+      <label class="label">Дополнительные опции</label>
+      <div class="checkbox-list">
+        <label class="checkbox-item"><input type="checkbox" value="Защитная речь" class="extra-cb" onchange="recalcEstimateRange()" /> Защитная речь к выступлению</label>
+        <label class="checkbox-item"><input type="checkbox" value="Список литературы по ГОСТу" class="extra-cb" onchange="recalcEstimateRange()" /> Список литературы по ГОСТу</label>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="label">Комментарий или особые пожелания</label>
+      <textarea id="inp-comment" class="textarea" placeholder="Уточнения по методичке, структуре или оформлению..."></textarea>
+    </div>
+
+    <div class="form-group">
+      <label class="label">Промокод (если есть)</label>
+      <div class="promo-row">
+        <input id="inp-promo" class="input" placeholder="ВВЕДИТЕ КОД" />
+        <button type="button" class="btn btn-blue btn-sm" onclick="checkPromoInput()">Применить</button>
+      </div>
+      <div id="promo-status-msg" style="font-size: 12px; margin-top: 5px; font-weight: 600;"></div>
+    </div>
+
+    <div id="bonus-use-box" class="form-group" style="display: none;">
+      <label class="checkbox-item" style="background: #FEF9C3;">
+        <input type="checkbox" id="inp-use-bonus" onchange="recalcEstimateRange()" />
+        <span id="bonus-use-label">Списать бонусы</span>
+      </label>
+    </div>
+
+    <div class="form-group">
+      <label class="label">Файлы и методички (до 5 файлов, до 10 МБ каждый)</label>
+      <label class="file-drop">
+        Нажмите, чтобы прикрепить документы или фото
+        <input type="file" id="inp-files" multiple style="display: none;" onchange="handleFileSelect(event)" />
+      </label>
+      <div id="attached-files-list" class="file-list"></div>
+    </div>
+
+    <!-- ДИНАМИЧЕСКАЯ ВИЛКА ПРИМЕРНОЙ СТОИМОСТИ -->
+    <div class="estimate-card">
+      <div class="estimate-top">
+        <span class="estimate-label">Примерный диапазон стоимости</span>
+        <span class="estimate-badge">ОРИЕНТИР</span>
+      </div>
+      <div id="estimate-range-val" class="estimate-range">1 200 – 2 200 ₽</div>
+      <div class="estimate-note">
+        Точную сумму рассчитает администратор после проверки требований и методички — оплата только после вашего согласия.
+      </div>
+    </div>
+
+    <button id="submit-order-btn" class="btn btn-yellow" onclick="submitOrder()">
+      Отправить заявку на точную оценку
+    </button>
+
+    <div class="legal-note">
+      Нажимая кнопку, вы соглашаетесь с <span onclick="openPolicyModal()">Политикой конфиденциальности и условиями сервиса</span>.
+    </div>
+  </div>
+</div>
+
+<!-- ШТОРКА ВЫСТАВЛЕНИЯ ЦЕНЫ (ДЛЯ АДМИНА В 1 ТАП) -->
+<div id="price-modal" class="modal-backdrop" style="z-index: 115;">
+  <div class="sheet">
+    <div class="sheet-header">
+      <div class="hero-title" style="font-size: 19px; margin: 0;">Счёт по заявке <span id="price-modal-order-id" class="highlight"></span></div>
+      <button class="close-btn" onclick="closePriceModal()">X</button>
+    </div>
+
+    <div id="price-modal-client-info" class="policy-block" style="background: #F8FAFC;"></div>
+
+    <div class="form-group">
+      <label class="label">Итоговая базовая стоимость (₽) *</label>
+      <input id="price-modal-amount" type="number" class="input" placeholder="Например: 1500" style="font-size: 18px; font-weight: 800;" />
+      <div style="display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap;">
+        <button type="button" class="chip-btn" onclick="document.getElementById('price-modal-amount').value=900">900 ₽</button>
+        <button type="button" class="chip-btn" onclick="document.getElementById('price-modal-amount').value=1200">1 200 ₽</button>
+        <button type="button" class="chip-btn" onclick="document.getElementById('price-modal-amount').value=1500">1 500 ₽</button>
+        <button type="button" class="chip-btn" onclick="document.getElementById('price-modal-amount').value=2000">2 000 ₽</button>
+        <button type="button" class="chip-btn" onclick="document.getElementById('price-modal-amount').value=2500">2 500 ₽</button>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="label">Ссылка на готовую работу (если уже готова, необязательно)</label>
+      <input id="price-modal-res-url" class="input" placeholder="https://drive.google.com/..." />
+    </div>
+
+    <button id="price-modal-submit" class="btn btn-yellow" onclick="confirmSendPriceToClient()">
+      Выставить цену и отправить счёт в бот
+    </button>
+  </div>
+</div>
+
+<!-- ШТОРКА ПОЛИТИКИ КОНФИДЕНЦИАЛЬНОСТИ И УСЛОВИЙ СЕРВИСА -->
+<div id="policy-modal" class="modal-backdrop" style="z-index: 120;">
+  <div class="sheet">
+    <div class="sheet-header">
+      <div class="hero-title" style="font-size: 19px; margin: 0;">Политика и условия <span class="highlight">StudyFlow</span></div>
+      <button class="close-btn" onclick="closePolicyModal()">X</button>
+    </div>
+
+    <div class="policy-block">
+      <h4>1. Характер оказываемых услуг</h4>
+      Сервис StudyFlow оказывает информационно-консультационную помощь в подготовке учебных материалов, оформлении текстов по ГОСТу и создании презентаций. Все подготовленные материалы носят справочный и вспомогательный характер и предназначены для самостоятельной подготовки студента.
+    </div>
+
+    <div class="policy-block">
+      <h4>2. Какие данные мы обрабатываем</h4>
+      Для оформления заявки и обратной связи мы фиксируем ваш числовой Telegram ID, имя профиля, никнейм (@username), параметры задачи и прикреплённые вами файлы (методички, черновики). Мы не запрашиваем паспортные данные, пароли или реквизиты банковских карт.
+    </div>
+
+    <div class="policy-block">
+      <h4>3. Конфиденциальность и сохранность файлов</h4>
+      Загруженные вами документы и готовые материалы хранятся в закрытом рабочем хранилище проекта и доступны только администратору заказа. Мы гарантируем, что ваши работы не публикуются в открытом доступе, не перепродаются и не передаются третьим лицам.
+    </div>
+
+    <div class="policy-block">
+      <h4>4. Стоимость, сроки и бесплатные правки</h4>
+      Указанный в форме диапазон является ориентировочным. Точная стоимость рассчитывается индивидуально до оплаты после изучения требований. Правки в рамках первоначального технического задания вносятся бесплатно.
+    </div>
+
+    <div class="policy-block">
+      <h4>5. Удаление данных и поддержка</h4>
+      Вы в любой момент можете запросить удаление своих загруженных файлов и истории заявок из базы сервиса, написав сообщение в бот @s_t_u_d_y_f_l_o_w_bot.
+    </div>
+
+    <button class="btn btn-yellow" onclick="closePolicyModal()">Понятно, закрыть</button>
+  </div>
+</div>
+
+<!-- ШТОРКА ОТКАЗА (ДЛЯ АДМИНА) -->
+<div id="reject-modal" class="modal-backdrop" style="z-index: 115;">
+  <div class="sheet">
+    <div class="sheet-header">
+      <div class="hero-title" style="font-size: 18px; margin: 0;">Отклонить заявку <span id="reject-order-title"></span></div>
+      <button class="close-btn" onclick="closeRejectModal()">X</button>
+    </div>
+    <div class="form-group">
+      <label class="label">Быстрый выбор причины</label>
+      <div class="checkbox-list">
+        <button type="button" class="btn btn-white btn-sm" onclick="document.getElementById('reject-reason-inp').value='Не наш профиль задачи.'">Не наш профиль</button>
+        <button type="button" class="btn btn-white btn-sm" onclick="document.getElementById('reject-reason-inp').value='Слишком сжатый срок выполнения.'">Слишком сжатый срок</button>
+        <button type="button" class="btn btn-white btn-sm" onclick="document.getElementById('reject-reason-inp').value='Недостаточно вводных данных или методички.'">Недостаточно вводных</button>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="label">Текст уведомления клиенту</label>
+      <textarea id="reject-reason-inp" class="textarea" placeholder="Укажите причину отказа..."></textarea>
+    </div>
+    <button class="btn btn-red" onclick="confirmRejectOrder()">Подтвердить отказ</button>
+  </div>
+</div>
+
+<script>
+  const GAS_API_URL = 'https://script.google.com/macros/s/AKfycbxwAZQxwpUOof9fHpvq9hbO49zrwoiTNdum3NatYxqkt-u9ftF8QVHQkbiQ4ioXJUvO/exec';
+
+  const ADMIN_ID = '8141670312';
+  const tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
+
+  let state = {
+    user: { id: ADMIN_ID, first_name: 'Администратор', username: '' },
+    isAdmin: false,
+    settings: {},
+    orders: [],
+    promos: [],
+    stats: {},
+    selectedDeadline: 'Срочно (до 24 ч)',
+    attachedFiles: [],
+    adminFilter: 'all',
+    rejectingOrderId: '',
+    pricingOrderId: '',
+    activePromo: null,
+    userBonusBalance: 0,
+    currentEstimateText: ''
+  };
+
+  if (tg) {
+    tg.ready();
+    tg.expand();
+    if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
+      state.user = tg.initDataUnsafe.user;
+    }
+  }
+
+  if (String(state.user.id) === ADMIN_ID) {
+    state.isAdmin = true;
+    document.getElementById('nav-admin-btn').style.display = 'flex';
+  }
+
+  // ==========================================================================
+  // ЛЁГКИЙ АНИМИРОВАННЫЙ СНЕГОПАД (60 FPS НА IPHONE)
+  // ==========================================================================
+  let snowEnabled = true;
+  let snowAnimId = null;
+
+  function initWinterSnow() {
+    const canvas = document.getElementById('snow-canvas');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    let w = canvas.width = window.innerWidth;
+    let h = canvas.height = window.innerHeight;
+
+    window.addEventListener('resize', () => {
+      w = canvas.width = window.innerWidth;
+      h = canvas.height = window.innerHeight;
+    });
+
+    const count = Math.min(38, Math.floor(w / 10));
+    const flakes = Array.from({ length: count }, () => ({
+      x: Math.random() * w,
+      y: Math.random() * h,
+      r: 1.5 + Math.random() * 2.8,
+      speedY: 0.45 + Math.random() * 0.85,
+      drift: (Math.random() - 0.5) * 0.4,
+      phase: Math.random() * Math.PI * 2,
+      alpha: 0.45 + Math.random() * 0.45
+    }));
+
+    function draw() {
+      ctx.clearRect(0, 0, w, h);
+      if (!snowEnabled) return;
+
+      for (let i = 0; i < flakes.length; i++) {
+        const f = flakes[i];
+        f.phase += 0.015;
+        f.y += f.speedY;
+        f.x += f.drift + Math.sin(f.phase) * 0.35;
+
+        if (f.y > h + 6) {
+          f.y = -6;
+          f.x = Math.random() * w;
+        }
+        if (f.x > w + 6) f.x = -6;
+        if (f.x < -6) f.x = w + 6;
+
+        ctx.beginPath();
+        ctx.arc(f.x, f.y, f.r, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(255, 255, 255, ${f.alpha})`;
+        ctx.fill();
+        ctx.lineWidth = 0.6;
+        ctx.strokeStyle = `rgba(125, 211, 252, ${f.alpha * 0.7})`;
+        ctx.stroke();
+      }
+      snowAnimId = requestAnimationFrame(draw);
+    }
+
+    draw();
+  }
+
+  function toggleSnow() {
+    haptic('light');
+    snowEnabled = !snowEnabled;
+    const btn = document.getElementById('snow-toggle-btn');
+    const canvas = document.getElementById('snow-canvas');
+    if (snowEnabled) {
+      btn.textContent = '❄️ Снег: ВКЛ';
+      canvas.style.display = 'block';
+      initWinterSnow();
+    } else {
+      btn.textContent = '❄️ Снег: ВЫКЛ';
+      if (snowAnimId) cancelAnimationFrame(snowAnimId);
+      canvas.style.display = 'none';
+    }
+  }
+
+  initWinterSnow();
+
+  // ==========================================================================
+  // ПРИМЕРНЫЙ ДИАПАЗОН ЦЕН (ОРИЕНТИР ДЛЯ КЛИЕНТОВ)
+  // ==========================================================================
+  const SERVICE_BASE_RANGES = {
+    'Презентации': [900, 1700],
+    'Рефераты и доклады': [1100, 2100],
+    'Конспекты': [600, 1200],
+    'Инфографика и схемы': [800, 1600],
+    'Оформление по ГОСТу': [500, 1100],
+    'Индивидуальный запрос': [1000, 2400]
+  };
+
+  function roundToHundred(val) {
+    return Math.max(300, Math.round(val / 100) * 100);
+  }
+
+  function recalcEstimateRange() {
+    const service = document.getElementById('inp-service').value;
+    const base = SERVICE_BASE_RANGES[service] || [900, 1800];
+    let minP = base[0];
+    let maxP = base[1];
+
+    // Учитываем коэффициент срочности
+    if (state.selectedDeadline === 'Срочно (до 24 ч)') {
+      minP *= 1.25;
+      maxP *= 1.35;
+    } else if (state.selectedDeadline === '2–3 дня') {
+      minP *= 1.1;
+      maxP *= 1.15;
+    }
+
+    // Учитываем указанный объём (если клиент ввёл число страниц или слайдов)
+    const volText = document.getElementById('inp-volume').value || '';
+    const numMatch = volText.match(/(\d+)/);
+    if (numMatch) {
+      const qty = parseInt(numMatch[1], 10);
+      if (qty > 15 && qty <= 80) {
+        const extraUnits = qty - 15;
+        minP += extraUnits * 35;
+        maxP += extraUnits * 55;
+      }
+    }
+
+    // Дополнительные опции
+    const extras = Array.from(document.querySelectorAll('.extra-cb:checked')).map(cb => cb.value);
+    if (extras.includes('Защитная речь')) {
+      minP += 300;
+      maxP += 500;
+    }
+    if (extras.includes('Список литературы по ГОСТу')) {
+      minP += 200;
+      maxP += 400;
+    }
+
+    // Скидка по промокоду (если применён)
+    if (state.activePromo) {
+      if (state.activePromo.type === 'percent') {
+        const factor = Math.max(0.1, (100 - Number(state.activePromo.value)) / 100);
+        minP *= factor;
+        maxP *= factor;
+      } else {
+        const disc = Number(state.activePromo.value || 0);
+        minP = Math.max(300, minP - disc);
+        maxP = Math.max(500, maxP - disc);
+      }
+    }
+
+    // Списание бонусов
+    const useBonusEl = document.getElementById('inp-use-bonus');
+    if (useBonusEl && useBonusEl.checked && state.userBonusBalance > 0) {
+      minP = Math.max(300, minP - state.userBonusBalance);
+      maxP = Math.max(500, maxP - state.userBonusBalance);
+    }
+
+    const finalMin = roundToHundred(minP);
+    const finalMax = Math.max(finalMin + 300, roundToHundred(maxP));
+    const formatted = `${finalMin.toLocaleString('ru-RU')} – ${finalMax.toLocaleString('ru-RU')} ₽`;
+
+    state.currentEstimateText = formatted;
+    document.getElementById('estimate-range-val').textContent = formatted;
+  }
+
+  // ==========================================================================
+  // API И ЛОГИКА ПРИЛОЖЕНИЯ
+  // ==========================================================================
+  function haptic(type = 'light') {
+    if (tg && tg.HapticFeedback) {
+      tg.HapticFeedback.impactOccurred(type);
+    }
+  }
+
+  function showToast(msg) {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.style.display = 'block';
+    setTimeout(() => { el.style.display = 'none'; }, 3500);
+  }
+
+  async function apiCall(payload) {
+    try {
+      const res = await fetch(GAS_API_URL, {
+        method: 'POST',
+        redirect: 'follow',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify(payload)
+      });
+      const text = await res.text();
+      return JSON.parse(text);
+    } catch (err) {
+      showToast('Ошибка связи с сервером: ' + err.message);
+      return { ok: false, error: err.message };
+    }
+  }
+
+  async function initApp() {
+    const startParam = tg && tg.initDataUnsafe ? (tg.initDataUnsafe.start_param || '') : '';
+    const data = await apiCall({
+      api_action: 'init',
+      user: state.user,
+      userId: String(state.user.id),
+      startParam: startParam,
+      webAppUrl: window.location.href
+    });
+
+    if (!data || !data.ok) {
+      renderClientOrders();
+      if (state.isAdmin) renderAdminOrders();
+      return;
+    }
+
+    state.isAdmin = data.isAdmin || String(state.user.id) === ADMIN_ID;
+    state.settings = data.settings || {};
+    state.orders = data.orders || [];
+    state.promos = data.promos || [];
+    state.stats = data.stats || {};
+
+    const pill = document.getElementById('service-status-pill');
+    const statusText = document.getElementById('service-status-text');
+    if (state.settings.status_mode === 'busy') {
+      pill.classList.add('busy');
+    } else {
+      pill.classList.remove('busy');
+    }
+    statusText.textContent = state.settings.status_text || 'Принимаем заказы • 10 мин';
+
+    const bonusBal = data.user ? Number(data.user.bonus_balance || 0) : 0;
+    const refCount = data.user ? Number(data.user.referrals_count || 0) : 0;
+    state.userBonusBalance = bonusBal;
+
+    document.getElementById('user-bonus-balance').textContent = `${bonusBal} ₽`;
+    document.getElementById('user-ref-count').textContent = refCount;
+
+    const botUser = state.settings.bot_username || 's_t_u_d_y_f_l_o_w_bot';
+    document.getElementById('ref-link-input').value = `https://t.me/${botUser}?start=ref_${state.user.id}`;
+
+    if (bonusBal > 0) {
+      document.getElementById('bonus-use-box').style.display = 'block';
+      document.getElementById('bonus-use-label').textContent = `Списать накопленные бонусы (${bonusBal} ₽)`;
+    }
+
+    renderClientOrders();
+
+    if (state.isAdmin) {
+      document.getElementById('nav-admin-btn').style.display = 'flex';
+      document.getElementById('adm-stat-active').textContent = state.stats.activeOrders || 0;
+      document.getElementById('adm-stat-rev').textContent = `${state.stats.revenue || 0} ₽`;
+      document.getElementById('adm-stat-total').textContent = state.stats.totalOrders || 0;
+      document.getElementById('adm-stat-users').textContent = state.stats.totalUsers || 0;
+      document.getElementById('adm-status-mode').value = state.settings.status_mode || 'open';
+      document.getElementById('adm-payment-details').value = state.settings.payment_details || '';
+      renderAdminPromos();
+      renderAdminOrders();
+    }
+  }
+
+  function switchTab(tabName, btnEl) {
+    haptic('light');
+    document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+    document.getElementById(`tab-${tabName}`).classList.add('active');
+    document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
+    if (btnEl) btnEl.classList.add('active');
+  }
+
+  function toggleCompare(mode) {
+    haptic('light');
+    const box = document.getElementById('compare-content');
+    document.getElementById('btn-before').classList.toggle('active', mode === 'before');
+    document.getElementById('btn-after').classList.toggle('active', mode === 'after');
+    if (mode === 'before') {
+      box.classList.remove('after');
+      box.textContent = 'Сплошной текст на 4 страницы без абзацев, разные шрифты (Calibri 11 и Arial 14), неровные таблицы, съехавшие поля и отсутствие нумерации страниц.';
+    } else {
+      box.classList.add('after');
+      box.textContent = 'Идеальная верстка по ГОСТу: Times New Roman 14 пт, интервал 1.5, автоматическое оглавление, выровненные таблицы с подписями и сквозная нумерация страниц.';
+    }
+  }
+
+  function openOrderSheet(serviceName) {
+    haptic('medium');
+    document.getElementById('inp-service').value = serviceName;
+    recalcEstimateRange();
+    document.getElementById('order-modal').classList.add('open');
+  }
+
+  function closeOrderSheet() {
+    document.getElementById('order-modal').classList.remove('open');
+  }
+
+  function openPolicyModal() {
+    haptic('light');
+    document.getElementById('policy-modal').classList.add('open');
+  }
+
+  function closePolicyModal() {
+    document.getElementById('policy-modal').classList.remove('open');
+  }
+
+  function selectDeadline(val, el) {
+    haptic('light');
+    state.selectedDeadline = val;
+    document.querySelectorAll('.deadline-chip').forEach(c => c.classList.remove('selected'));
+    el.classList.add('selected');
+    recalcEstimateRange();
+  }
+
+  function handleFileSelect(e) {
+    const files = Array.from(e.target.files || []);
+    files.forEach(file => {
+      if (state.attachedFiles.length >= 5) {
+        showToast('Максимум 5 файлов');
+        return;
+      }
+      if (file.size > 10 * 1024 * 1024) {
+        showToast(`Файл ${file.name} больше 10 МБ`);
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = () => {
+        const base64 = reader.result.split(',')[1];
+        state.attachedFiles.push({
+          name: file.name,
+          mimeType: file.type,
+          base64: base64
+        });
+        renderAttachedFiles();
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function renderAttachedFiles() {
+    const list = document.getElementById('attached-files-list');
+    list.innerHTML = state.attachedFiles.map((f, idx) => `
+      <div class="file-pill">
+        <span>${f.name}</span>
+        <span style="cursor:pointer; color:#EF4444;" onclick="removeAttachedFile(${idx})">Удалить</span>
+      </div>
+    `).join('');
+  }
+
+  function removeAttachedFile(idx) {
+    state.attachedFiles.splice(idx, 1);
+    renderAttachedFiles();
+  }
+
+  async function checkPromoInput() {
+    const code = document.getElementById('inp-promo').value.trim();
+    const msgEl = document.getElementById('promo-status-msg');
+    if (!code) return;
+    msgEl.textContent = 'Проверяем промокод...';
+    const res = await apiCall({ api_action: 'validatePromo', code: code });
+    if (res && res.ok) {
+      state.activePromo = res.promo;
+      const disc = res.promo.type === 'percent' ? `${res.promo.value}%` : `${res.promo.value} ₽`;
+      msgEl.style.color = '#059669';
+      msgEl.textContent = `Промокод активен: скидка ${disc} учтена в ориентире и применится при расчёте.`;
+      recalcEstimateRange();
+    } else {
+      state.activePromo = null;
+      msgEl.style.color = '#DC2626';
+      msgEl.textContent = res.error || 'Промокод недействителен';
+      recalcEstimateRange();
+    }
+  }
+
+  async function submitOrder() {
+    const topic = document.getElementById('inp-topic').value.trim();
+    if (!topic) {
+      showToast('Укажите предмет и тему работы');
+      return;
+    }
+
+    const btn = document.getElementById('submit-order-btn');
+    btn.disabled = true;
+    btn.textContent = 'Отправляем заявку...';
+
+    const extras = Array.from(document.querySelectorAll('.extra-cb:checked')).map(cb => cb.value);
+    const rawComment = document.getElementById('inp-comment').value.trim();
+    const estimateNote = state.currentEstimateText ? `[Ориентир клиента: ${state.currentEstimateText}]` : '';
+    const finalComment = [rawComment, estimateNote].filter(Boolean).join(' ');
+
+    const res = await apiCall({
+      api_action: 'createOrder',
+      user: state.user,
+      service: document.getElementById('inp-service').value,
+      topic: topic,
+      deadline: state.selectedDeadline,
+      volume: document.getElementById('inp-volume').value.trim(),
+      extras: extras,
+      comment: finalComment,
+      promoCode: document.getElementById('inp-promo').value.trim(),
+      useBonus: document.getElementById('inp-use-bonus').checked,
+      files: state.attachedFiles
+    });
+
+    btn.disabled = false;
+    btn.textContent = 'Отправить заявку на точную оценку';
+
+    if (res && res.ok) {
+      haptic('heavy');
+      showToast(`Заявка ${res.orderId} отправлена!`);
+      closeOrderSheet();
+      state.attachedFiles = [];
+      renderAttachedFiles();
+      document.getElementById('inp-topic').value = '';
+      document.getElementById('inp-comment').value = '';
+      await initApp();
+      switchTab('orders', document.querySelectorAll('.nav-item')[1]);
+    } else {
+      showToast(res.error || 'Ошибка отправки заявки');
+    }
+  }
+
+  function renderClientOrders() {
+    const container = document.getElementById('client-orders-list');
+    const myOrders = state.orders.filter(o => String(o.user_id) === String(state.user.id));
+
+    if (myOrders.length === 0) {
+      container.innerHTML = `<div class="order-card"><div class="order-detail">У вас пока нет активных заявок. Нажмите «Услуги», чтобы оформить первый заказ.</div></div>`;
+      return;
+    }
+
+    container.innerHTML = myOrders.map(o => {
+      let badgeClass = '';
+      if (o.status === 'Готов' || o.status === 'В работе') badgeClass = 'green';
+      if (o.status === 'Ожидает оплаты') badgeClass = 'blue';
+      if (o.status === 'Отклонён') badgeClass = 'red';
+
+      const priceBlock = Number(o.final_price) > 0
+        ? `<div class="price-box">
+            Стоимость к оплате: ${o.final_price} ₽
+            ${o.status === 'Ожидает оплаты' ? `<div style="font-weight:500; font-size:12px; margin-top:4px;">${state.settings.payment_details || ''}</div>` : ''}
+           </div>`
+        : `<div class="order-detail" style="margin-top:6px;"><b>Стоимость:</b> ожидает оценки администратором</div>`;
+
+      return `
+        <div class="order-card">
+          <div class="order-top">
+            <span class="order-id">${o.order_id} • ${o.service}</span>
+            <span class="badge ${badgeClass}">${o.status}</span>
+          </div>
+          <div class="order-detail"><b>Тема:</b> ${o.topic}</div>
+          <div class="order-detail"><b>Срок:</b> ${o.deadline}</div>
+          ${o.reject_reason ? `<div class="order-detail" style="color:#DC2626;"><b>Причина отказа:</b> ${o.reject_reason}</div>` : ''}
+          ${priceBlock}
+          ${o.result_url ? `<a href="${o.result_url}" target="_blank" class="btn btn-blue btn-sm" style="margin-top:10px;">Скачать готовую работу</a>` : ''}
+          ${o.status === 'Готов' ? `<button class="btn btn-yellow btn-sm" style="margin-top:8px;" onclick="askRevision('${o.order_id}')">Запросить правку</button>` : ''}
+        </div>
+      `;
+    }).join('');
+  }
+
+  async function askRevision(orderId) {
+    const comment = prompt('Опишите, какие правки нужно внести:');
+    if (!comment) return;
+    const res = await apiCall({ api_action: 'requestRevision', orderId: orderId, comment: comment });
+    if (res && res.ok) {
+      showToast('Запрос на правку отправлен');
+      initApp();
+    }
+  }
+
+  function copyRefLink() {
+    const inp = document.getElementById('ref-link-input');
+    inp.select();
+    navigator.clipboard.writeText(inp.value);
+    haptic('light');
+    showToast('Ссылка скопирована');
+  }
+
+  // ==========================================================================
+  // АДМИН-ПАНЕЛЬ: УПРАВЛЕНИЕ ЗАЯВКАМИ В 1 ТАП + ВЫСТАВЛЕНИЕ СЧЁТА + GOOGLE ДИСК
+  // ==========================================================================
+  function filterAdminOrders(status, btn) {
+    state.adminFilter = status;
+    btn.parentElement.querySelectorAll('.chip-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    renderAdminOrders();
+  }
+
+  function renderAdminOrders() {
+    const container = document.getElementById('admin-orders-list');
+    const filtered = state.adminFilter === 'all'
+      ? state.orders
+      : state.orders.filter(o => o.status === state.adminFilter);
+
+    if (filtered.length === 0) {
+      container.innerHTML = `<div class="order-card"><div class="order-detail">Заявок в этой категории нет.</div></div>`;
+      return;
+    }
+
+    container.innerHTML = filtered.map(o => {
+      let badgeClass = '';
+      if (o.status === 'Готов' || o.status === 'В работе') badgeClass = 'green';
+      if (o.status === 'Ожидает оплаты') badgeClass = 'blue';
+      if (o.status === 'Отклонён') badgeClass = 'red';
+
+      const isNew = (o.status === 'На оценке' || o.status === 'Новая');
+      const isWork = (o.status === 'В работе');
+      const isDone = (o.status === 'Готов');
+
+      return `
+        <div class="order-card">
+          <div class="order-top">
+            <span class="order-id">${o.order_id} • ${o.service}</span>
+            <span class="badge ${badgeClass}">${o.status}</span>
+          </div>
+          <div class="order-detail"><b>Клиент:</b> ${o.full_name} (${o.username || 'без юзернейма'})</div>
+          <div class="order-detail"><b>Тема:</b> ${o.topic}</div>
+          <div class="order-detail"><b>Срок:</b> ${o.deadline} | <b>Объем:</b> ${o.volume || '—'}</div>
+          ${o.comment ? `<div class="order-detail"><b>Детали:</b> ${o.comment}</div>` : ''}
+          ${o.promo_code ? `<div class="order-detail" style="color:#059669;"><b>Промокод:</b> ${o.promo_code} (${o.promo_discount_text || ''})</div>` : ''}
+          ${Number(o.bonus_used) > 0 ? `<div class="order-detail"><b>Списано бонусов:</b> ${o.bonus_used} ₽</div>` : ''}
+          ${Number(o.final_price) > 0 ? `<div class="order-detail" style="color:#0369A1;"><b>Выставленная цена:</b> ${o.final_price} ₽</div>` : ''}
+
+          <!-- Смена статуса в 1 тап: Новая -> В работе -> Готово -->
+          <div class="admin-action-box">
+            <div style="font-size:11px; font-weight:800; color:var(--ink-muted); margin-bottom:6px; text-transform:uppercase;">
+              Статус заказа в 1 тап:
+            </div>
+            <div class="admin-status-stepper">
+              <button type="button" class="step-btn new-step ${isNew ? 'current' : ''}" onclick="adminSetStatus('${o.order_id}', 'На оценке')">
+                1. Новая
+              </button>
+              <button type="button" class="step-btn ${isWork ? 'current' : ''}" onclick="adminSetStatus('${o.order_id}', 'В работе')">
+                2. В работе
+              </button>
+              <button type="button" class="step-btn ${isDone ? 'current' : ''}" onclick="adminSetStatus('${o.order_id}', 'Готов')">
+                3. Готово
+              </button>
+            </div>
+
+            <div class="btn-grid-2">
+              <button type="button" class="btn btn-yellow btn-sm" onclick="openPriceModal('${o.order_id}')">
+                💳 Выставить цену
+              </button>
+              ${o.drive_url
+                ? `<a href="${o.drive_url}" target="_blank" class="btn btn-blue btn-sm">📁 Google Диск</a>`
+                : `<button type="button" class="btn btn-white btn-sm" disabled style="opacity:0.5;">Нет папки</button>`
+              }
+            </div>
+          </div>
+
+          <div class="btn-grid-2">
+            <button type="button" class="btn btn-red btn-sm" onclick="openRejectModal('${o.order_id}')">Отказать</button>
+            <button type="button" class="btn btn-white btn-sm" style="color:#DC2626;" onclick="adminDeleteOrder('${o.order_id}')">Удалить заявку</button>
+          </div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  function openPriceModal(orderId) {
+    haptic('medium');
+    const order = state.orders.find(o => o.order_id === orderId);
+    if (!order) return;
+
+    state.pricingOrderId = orderId;
+    document.getElementById('price-modal-order-id').textContent = orderId;
+    document.getElementById('price-modal-amount').value = order.base_price || '';
+    document.getElementById('price-modal-res-url').value = order.result_url || '';
+
+    document.getElementById('price-modal-client-info').innerHTML = `
+      <div><b>Клиент:</b> ${order.full_name} (${order.username || 'ID ' + order.user_id})</div>
+      <div><b>Задача:</b> ${order.service} — ${order.topic}</div>
+      <div><b>Срок и объём:</b> ${order.deadline} | ${order.volume || 'не указан'}</div>
+      ${order.comment ? `<div style="margin-top:4px; color:#0369A1;"><b>Комментарий:</b> ${order.comment}</div>` : ''}
+    `;
+
+    document.getElementById('price-modal').classList.add('open');
+  }
+
+  function closePriceModal() {
+    document.getElementById('price-modal').classList.remove('open');
+  }
+
+  async function confirmSendPriceToClient() {
+    const basePrice = document.getElementById('price-modal-amount').value.trim();
+    const resultUrl = document.getElementById('price-modal-res-url').value.trim();
+    if (!basePrice || Number(basePrice) <= 0) {
+      showToast('Введите корректную сумму в рублях');
+      return;
+    }
+
+    const btn = document.getElementById('price-modal-submit');
+    btn.disabled = true;
+    btn.textContent = 'Отправляем счёт клиенту...';
+
+    const res = await apiCall({
+      api_action: 'adminUpdateOrder',
+      userId: String(state.user.id),
+      orderId: state.pricingOrderId,
+      basePrice: basePrice,
+      resultUrl: resultUrl
+    });
+
+    btn.disabled = false;
+    btn.textContent = 'Выставить цену и отправить счёт в бот';
+
+    if (res && res.ok) {
+      haptic('heavy');
+      closePriceModal();
+      showToast(`Счёт по ${state.pricingOrderId} отправлен клиенту в бот!`);
+      initApp();
+    } else {
+      showToast(res.error || 'Ошибка выставления цены');
+    }
+  }
+
+  async function adminSetStatus(orderId, newStatus) {
+    haptic('medium');
+    const order = state.orders.find(o => o.order_id === orderId);
+    const resultUrl = order ? (order.result_url || '') : '';
+    showToast(`Меняем статус ${orderId} → «${newStatus}»...`);
+
+    const res = await apiCall({
+      api_action: 'adminUpdateOrder',
+      userId: String(state.user.id),
+      orderId: orderId,
+      status: newStatus,
+      resultUrl: resultUrl
+    });
+    if (res && res.ok) {
+      haptic('heavy');
+      showToast(`${orderId}: статус «${newStatus}»`);
+      initApp();
+    }
+  }
+
+  function openRejectModal(orderId) {
+    state.rejectingOrderId = orderId;
+    document.getElementById('reject-order-title').textContent = orderId;
+    document.getElementById('reject-reason-inp').value = '';
+    document.getElementById('reject-modal').classList.add('open');
+  }
+
+  function closeRejectModal() {
+    document.getElementById('reject-modal').classList.remove('open');
+  }
+
+  async function confirmRejectOrder() {
+    const reason = document.getElementById('reject-reason-inp').value.trim() || 'Заявка отклонена администратором.';
+    const res = await apiCall({
+      api_action: 'adminUpdateOrder',
+      userId: String(state.user.id),
+      orderId: state.rejectingOrderId,
+      status: 'Отклонён',
+      rejectReason: reason
+    });
+    if (res && res.ok) {
+      closeRejectModal();
+      showToast(`Заявка ${state.rejectingOrderId} отклонена`);
+      initApp();
+    }
+  }
+
+  async function adminDeleteOrder(orderId) {
+    if (!confirm(`Точно удалить заявку ${orderId} из базы навсегда?`)) return;
+    const res = await apiCall({
+      api_action: 'adminDeleteOrder',
+      userId: String(state.user.id),
+      orderId: orderId
+    });
+    if (res && res.ok) {
+      haptic('heavy');
+      showToast(`Заявка ${orderId} удалена`);
+      initApp();
+    }
+  }
+
+  async function createPromoBroadcast() {
+    const code = document.getElementById('adm-promo-code').value.trim();
+    const type = document.getElementById('adm-promo-type').value;
+    const value = document.getElementById('adm-promo-val').value;
+    const maxUses = document.getElementById('adm-promo-limit').value;
+
+    if (!code || !value) {
+      showToast('Заполните код и размер скидки');
+      return;
+    }
+
+    showToast('Создаем промокод и рассылаем уведомления...');
+    const res = await apiCall({
+      api_action: 'adminCreatePromo',
+      userId: String(state.user.id),
+      code: code,
+      type: type,
+      value: value,
+      maxUses: maxUses
+    });
+
+    if (res && res.ok) {
+      haptic('heavy');
+      showToast(`Промокод создан! Оповещено пользователей: ${res.notified}`);
+      document.getElementById('adm-promo-code').value = '';
+      document.getElementById('adm-promo-val').value = '';
+      initApp();
+    } else {
+      showToast(res.error || 'Ошибка создания промокода');
+    }
+  }
+
+  function renderAdminPromos() {
+    const container = document.getElementById('adm-promos-list');
+    if (state.promos.length === 0) {
+      container.innerHTML = `<div class="order-detail">Активных промокодов пока нет.</div>`;
+      return;
+    }
+    container.innerHTML = state.promos.map(p => {
+      const disc = p.type === 'percent' ? `${p.value}%` : `${p.value} ₽`;
+      const lim = Number(p.max_uses) > 0 ? `${p.used_count} / ${p.max_uses}` : `${p.used_count} / безлимит`;
+      return `
+        <div class="file-pill" style="background: #F4F8FC; margin-bottom: 6px; padding: 8px 10px;">
+          <span><b>${p.code}</b> (-${disc}) • Использований: ${lim}</span>
+          <button class="btn btn-red btn-sm" style="width:auto; padding:4px 10px;" onclick="deletePromo('${p.code}')">Удалить</button>
+        </div>
+      `;
+    }).join('');
+  }
+
+  async function deletePromo(code) {
+    const res = await apiCall({
+      api_action: 'adminDeletePromo',
+      userId: String(state.user.id),
+      code: code
+    });
+    if (res && res.ok) {
+      showToast(`Промокод ${code} удален`);
+      initApp();
+    }
+  }
+
+  async function saveAdminSettings() {
+    const res = await apiCall({
+      api_action: 'adminUpdateSettings',
+      userId: String(state.user.id),
+      statusMode: document.getElementById('adm-status-mode').value,
+      paymentDetails: document.getElementById('adm-payment-details').value.trim()
+    });
+    if (res && res.ok) {
+      showToast('Настройки сохранены');
+      initApp();
+    }
+  }
+
+  initApp();
+</script>
+</body>
+</html>
